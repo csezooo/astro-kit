@@ -1,0 +1,79 @@
+---
+/**
+ * WeboldaltMost blog – előnézet a weboldal saját kinézetével (src/pages/blog/elonezet.astro).
+ *
+ * A panel "Előnézet a weboldalon" gombja ide visz: /blog/elonezet/?t={titkos token}. Az oldal a te cikk-sablonodat
+ * rajzolja ki egy mintával (PREVIEW_POST), ez a komponens pedig a böngészőben letölti a szerkesztés alatti változatot,
+ * és beírja a data-wm-blog="…" jelölésű elemekbe:
+ *
+ *   title · html · description · category · date · reading · author · tags · cover (img)
+ *
+ * Tehát a cikk-sablonodban (pl. src/components/BlogArticle.astro) ezeket az attribútumokat tedd az elemekre
+ * (ld. examples/blog). Az oldal noindex, és nem kerül a sitemapbe.
+ */
+import { WM } from './config';
+
+interface Props {
+  /** A weboldal mérőkódja (src/wm.config.ts → WM_SITE) */
+  site: string;
+  apiUrl?: string;
+}
+
+const { site, apiUrl = WM.apiUrl } = Astro.props;
+const api = `${apiUrl.replace(/\/$/, '')}/api/v1/blog/${encodeURIComponent(site)}/preview/`;
+---
+
+<div class="wm-preview-bar" data-wm-preview-bar hidden>
+  <strong>Előnézet</strong> <span data-wm-preview-state>– csak te látod, a weboldalon még nem jelent meg.</span>
+</div>
+
+<script is:inline define:vars={{ api }}>
+  (async () => {
+    const bar = document.querySelector('[data-wm-preview-bar]');
+    const state = document.querySelector('[data-wm-preview-state]');
+    const token = new URLSearchParams(location.search).get('t') || '';
+    const all = (name) => document.querySelectorAll(`[data-wm-blog="${name}"]`);
+    const text = (name, value) => all(name).forEach((el) => { el.textContent = value || ''; el.hidden = !value; });
+    if (bar) bar.hidden = false;
+
+    if (!/^[A-Za-z0-9]{40}$/.test(token)) {
+      if (state) state.textContent = '– hiányzik vagy hibás az előnézeti link. Nyisd meg újra a panelből.';
+      return;
+    }
+
+    try {
+      const res = await fetch(api + token, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const { post, status } = await res.json();
+      const date = new Intl.DateTimeFormat('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Europe/Budapest' });
+
+      document.title = `Előnézet: ${post.title}`;
+      text('title', post.title);
+      text('description', post.description);
+      text('category', post.category?.name);
+      text('date', post.published_at ? date.format(new Date(post.published_at)) : date.format(new Date()));
+      text('reading', `${post.reading_minutes} perc olvasás`);
+      text('author', post.author?.name);
+      text('tags', (post.tags || []).join(', '));
+      all('html').forEach((el) => { el.innerHTML = post.html || '<p><em>Még üres a cikk.</em></p>'; });
+      all('cover').forEach((img) => {
+        if (!post.cover) { img.hidden = true; return; }
+        img.src = post.cover.url;
+        img.alt = post.cover.alt || '';
+        if (post.cover.width) img.width = post.cover.width;
+        if (post.cover.height) img.height = post.cover.height;
+        img.hidden = false;
+      });
+      if (state) state.textContent = status === 'published'
+        ? '– a legutóbbi mentett változat. A weboldalon a „Változások közzététele” után jelenik meg.'
+        : '– csak te látod, a weboldalon még nem jelent meg.';
+    } catch {
+      if (state) state.textContent = '– nem sikerült betölteni. Frissítsd az oldalt, vagy nyisd meg újra a panelből.';
+    }
+  })();
+</script>
+
+<style is:global>
+  .wm-preview-bar { position: fixed; z-index: 9999; left: 50%; bottom: 1rem; transform: translateX(-50%); max-width: calc(100% - 2rem); padding: .6rem 1rem; background: #161616; color: #fff; font: 600 14px/1.4 system-ui, sans-serif; box-shadow: 0 4px 16px rgb(0 0 0 / .25); }
+  .wm-preview-bar strong { color: #f2e82c; }
+</style>

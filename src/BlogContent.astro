@@ -1,0 +1,43 @@
+---
+/**
+ * WeboldaltMost blog – a cikk szövege.
+ *
+ *   <BlogContent post={post} />
+ *   <BlogContent post={post} class="max-w-prose mx-auto" />
+ *
+ * Egyetlen <div class="wm-prose"> a tiszta HTML-lel (h2, h3, p, ul, ol, blockquote, .wm-table, figure, img, a,
+ * és a blokkok: .wm-cta, .wm-gallery, .wm-video, .wm-faq). A kinézetet a weboldalad CSS-e adja – alap stílus:
+ * import '@weboldaltmost/astro-kit/blog.css'.
+ *
+ * A videók csak egy képpel töltődnek be (gyors oldal); a lejátszó kattintásra jön (ld. a lenti szkriptet).
+ */
+import type { BlogPost } from './blog';
+
+interface Props {
+  post: BlogPost;
+  class?: string;
+}
+
+const { post, class: className } = Astro.props;
+---
+
+<div class:list={['wm-prose', className]} data-wm-blog="html" set:html={post.html} />
+
+<script is:inline>
+  if (!window.__wmBlogVideo) {
+    window.__wmBlogVideo = true;
+    document.addEventListener('click', (event) => {
+      const link = event.target instanceof Element ? event.target.closest('a[data-wm-embed]') : null;
+      if (!link) return;
+      event.preventDefault();
+      const frame = document.createElement('iframe');
+      frame.src = link.getAttribute('data-wm-embed');
+      frame.title = link.querySelector('img')?.getAttribute('alt') || 'Videó';
+      frame.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen';
+      frame.allowFullscreen = true;
+      frame.referrerPolicy = 'strict-origin-when-cross-origin';
+      frame.className = 'wm-video-frame';
+      link.replaceWith(frame);
+    });
+  }
+</script>

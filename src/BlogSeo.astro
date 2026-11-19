@@ -1,0 +1,76 @@
+---
+/**
+ * WeboldaltMost blog – keresőoptimalizálás a <head>-be (cikk, kategória vagy a blog főoldala).
+ *
+ *   <BlogSeo post={post} />                 cikkoldal
+ *   <BlogSeo category={category} blog={blog} />   kategóriaoldal
+ *   <BlogSeo blog={blog} />                 a blog főoldala
+ *
+ * Kiírja: title, meta leírás, canonical, Open Graph + Twitter, article:* címkék, robots (noindex, ha kell),
+ * RSS link és a schema.org JSON-LD-t (BlogPosting / CollectionPage / Blog + BreadcrumbList + FAQPage).
+ *
+ * Ha a layoutod maga írja a <title>-t, a leírást, a canonicalt és az og címkéket, add meg: meta={false} –
+ * ilyenkor csak a cikk-specifikus címkék és a JSON-LD kerülnek ki (a többit add át a layoutnak: post.seo_title,
+ * post.description, post.url, post.cover).
+ *
+ * A kiadó (publisher) a weboldalad Organization / LocalBusiness schemájára hivatkozik: alapból
+ * https://{domain}/#organization. Ha nálad más az @id, add meg: organizationId="https://…/#business".
+ */
+import type { Blog, BlogCategory, BlogPost } from './blog';
+
+interface Props {
+  post?: BlogPost;
+  category?: BlogCategory;
+  blog?: Blog;
+  meta?: boolean;
+  organizationId?: string;
+  /** og:site_name – alapból a blog adataiból (a cég neve) */
+  siteName?: string;
+}
+
+const { post, category, blog, meta = true, organizationId, siteName = blog?.site.name } = Astro.props;
+
+const canonical = post?.url ?? category?.url ?? blog?.blog.url ?? '';
+const title = post
+  ? post.seo_title
+  : category
+    ? [category.name, siteName].filter(Boolean).join(' | ')
+    : blog
+      ? [blog.blog.title, blog.site.name].filter(Boolean).join(' | ')
+      : '';
+const description = post?.description ?? category?.description ?? blog?.blog.description ?? '';
+const image = post?.cover ?? null;
+const origin = canonical ? new URL(canonical).origin : '';
+const rss = origin ? `${origin}${blog?.blog.path ?? '/blog/'}rss.xml` : '';
+const schema = post?.schema ?? category?.schema ?? blog?.blog.schema ?? null;
+
+let json = schema && Object.keys(schema).length ? JSON.stringify(schema) : '';
+if (json && organizationId && origin) json = json.split(`${origin}/#organization`).join(organizationId);
+json = json.replace(/</g, '\\u003c');
+---
+
+{meta && (
+  <>
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    <meta property="og:type" content={post ? 'article' : 'website'} />
+    <meta property="og:locale" content="hu_HU" />
+    {siteName && <meta property="og:site_name" content={siteName} />}
+    <meta property="og:title" content={post?.title ?? title} />
+    {description && <meta property="og:description" content={description} />}
+    {canonical && <meta property="og:url" content={canonical} />}
+    {image && <meta property="og:image" content={image.url} />}
+    {image?.width && <meta property="og:image:width" content={String(image.width)} />}
+    {image?.height && <meta property="og:image:height" content={String(image.height)} />}
+    {image?.alt && <meta property="og:image:alt" content={image.alt} />}
+    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+  </>
+)}
+{post?.published_at && <meta property="article:published_time" content={post.published_at} />}
+{post?.updated_at && <meta property="article:modified_time" content={post.updated_at} />}
+{post?.category && <meta property="article:section" content={post.category.name} />}
+{post?.tags.map((tag) => <meta property="article:tag" content={tag} />)}
+{post?.noindex && <meta name="robots" content="noindex, follow" />}
+{rss && <link rel="alternate" type="application/rss+xml" title={blog?.blog.title ?? 'Blog'} href={rss} />}
+{json && <script type="application/ld+json" set:html={json} />}

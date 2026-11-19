@@ -1,0 +1,28 @@
+---
+/**
+ * WeboldaltMost látogatottság-mérés (sütimentes) – a közös layout <head> részébe:
+ *
+ *   <Analytics site="abc123def456" />
+ *
+ * A 404 oldalon (src/pages/404.astro layoutjában) így, hogy a hibás linkeket is lássuk:
+ *
+ *   <Analytics site="abc123def456" notFound />
+ *
+ * A mérőkód (site) az adminban, a weboldal adatlapján, a "Látogatottság mérése" résznél van.
+ * A szkript a platformról töltődik be, így a javítások build nélkül megjelennek.
+ */
+import { WM } from './config';
+
+interface Props {
+  /** A weboldal mérőkódja a platformon */
+  site: string;
+  /** 404 oldal (nem található) */
+  notFound?: boolean;
+  apiUrl?: string;
+}
+
+const { site, notFound = false, apiUrl = WM.apiUrl } = Astro.props;
+const src = `${apiUrl.replace(/\/$/, '')}/js/wm-t.js`;
+---
+
+<script is:inline defer src={src} data-site={site} data-404={notFound ? '' : undefined}></script>

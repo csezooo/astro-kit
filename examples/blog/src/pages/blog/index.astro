@@ -1,0 +1,34 @@
+---
+/**
+ * Minta: a blog főoldala (/blog/). A Layout a te közös layoutod – kell bele egy <slot name="head" /> a </head> elé.
+ */
+import Layout from '../../layouts/Layout.astro';
+import BlogSeo from '@weboldaltmost/astro-kit/BlogSeo.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import { getBlog, getCategories } from '@weboldaltmost/astro-kit/blog';
+import '@weboldaltmost/astro-kit/blog.css';
+import { WM_SITE } from '../../wm.config';
+
+const blog = await getBlog(WM_SITE);
+const categories = await getCategories(WM_SITE);
+---
+
+<Layout title={`${blog.blog.title} | ${blog.site.name}`} description={blog.blog.description}>
+  <BlogSeo slot="head" blog={blog} meta={false} />
+
+  <section class="blog">
+    <header class="blog__head">
+      <h1>{blog.blog.title}</h1>
+      {blog.blog.description && <p>{blog.blog.description}</p>}
+      {categories.length > 0 && (
+        <nav class="blog__categories" aria-label="Kategóriák">
+          {categories.map((category) => <a href={category.path}>{category.name}</a>)}
+        </nav>
+      )}
+    </header>
+
+    {blog.posts.length === 0
+      ? <p>Hamarosan érkeznek az első cikkek.</p>
+      : <div class="blog__grid">{blog.posts.map((post, i) => <BlogCard post={post} eager={i === 0} />)}</div>}
+  </section>
+</Layout>

@@ -1,0 +1,22 @@
+---
+/**
+ * A WeboldaltMost panel "Megjegyzés mód"-jához szükséges kapcsolat.
+ * Tedd a közös layout <body>-jának végére:
+ *
+ *   <FeedbackBridge />
+ *
+ * A látogatóknak semmit nem tölt be: a script csak akkor töltődik le,
+ * ha az oldal a panel előnézetében (iframe-ben) nyílik meg.
+ */
+import { WM } from './config';
+
+const src = `${WM.apiUrl.replace(/\/$/, '')}/js/wm-feedback.js`;
+---
+
+<script is:inline define:vars={{ src }}>
+  if (window.top !== window.self) {
+    var s = document.createElement('script');
+    s.src = src;
+    document.body.appendChild(s);
+  }
+</script>

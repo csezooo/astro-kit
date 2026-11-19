@@ -1,0 +1,30 @@
+---
+/**
+ * Minta: egy kategória oldala (/blog/kategoria/{kategória}/). Csak az kap oldalt, aminél az ügyfél bekapcsolta
+ * a "Saját oldal" kapcsolót, és van benne megjelent cikk.
+ */
+import Layout from '../../../layouts/Layout.astro';
+import BlogSeo from '@weboldaltmost/astro-kit/BlogSeo.astro';
+import BlogCard from '../../../components/BlogCard.astro';
+import { categoryPaths, getBlog, type BlogCategory, type BlogPost } from '@weboldaltmost/astro-kit/blog';
+import '@weboldaltmost/astro-kit/blog.css';
+import { WM_SITE } from '../../../wm.config';
+
+export const getStaticPaths = () => categoryPaths(WM_SITE);
+
+const { category, posts } = Astro.props as { category: BlogCategory; posts: BlogPost[] };
+const blog = await getBlog(WM_SITE);
+---
+
+<Layout title={`${category.name} | ${blog.site.name}`} description={category.description}>
+  <BlogSeo slot="head" category={category} blog={blog} meta={false} />
+
+  <section class="blog">
+    <nav class="blog-article__crumbs" aria-label="Morzsamenü"><a href="/">Főoldal</a> › <a href="/blog/">Blog</a></nav>
+    <header class="blog__head">
+      <h1>{category.name}</h1>
+      {category.description && <p>{category.description}</p>}
+    </header>
+    <div class="blog__grid">{posts.map((post, i) => <BlogCard post={post} eager={i === 0} />)}</div>
+  </section>
+</Layout>

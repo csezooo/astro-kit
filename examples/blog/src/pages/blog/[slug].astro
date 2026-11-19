@@ -1,0 +1,31 @@
+---
+/**
+ * Minta: egy cikk oldala (/blog/{cikk}/). Build közben minden megjelent cikkhez készül egy oldal.
+ */
+import Layout from '../../layouts/Layout.astro';
+import BlogSeo from '@weboldaltmost/astro-kit/BlogSeo.astro';
+import BlogArticle from '../../components/BlogArticle.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import { postPaths, relatedPosts, type BlogPost } from '@weboldaltmost/astro-kit/blog';
+import '@weboldaltmost/astro-kit/blog.css';
+import { WM_SITE } from '../../wm.config';
+
+export const getStaticPaths = () => postPaths(WM_SITE);
+
+const { post } = Astro.props as { post: BlogPost };
+const related = await relatedPosts(WM_SITE, post);
+---
+
+<Layout title={post.seo_title} description={post.description}>
+  <!-- meta={false}: a title-t és a leírást a Layout írja ki. Ha a Layoutod nem ír canonicalt és og címkéket, töröld a meta={false}-t. -->
+  <BlogSeo slot="head" post={post} meta={false} />
+
+  <BlogArticle post={post} />
+
+  {related.length > 0 && (
+    <aside class="blog-related">
+      <h2>Ezek is érdekelhetnek</h2>
+      <div class="blog__grid">{related.map((item) => <BlogCard post={item} />)}</div>
+    </aside>
+  )}
+</Layout>

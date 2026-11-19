@@ -1,0 +1,32 @@
+---
+/**
+ * Minta: egy cikk kártyája a bloglistában. Szabadon átírhatod – ez a te kódod, nem a kité.
+ */
+import type { BlogPost } from '@weboldaltmost/astro-kit/blog';
+import { formatDate } from '@weboldaltmost/astro-kit/blog';
+
+interface Props {
+  post: BlogPost;
+  /** Az első kártya képe ne töltődjön lustán (gyorsabb első megjelenés) */
+  eager?: boolean;
+}
+
+const { post, eager = false } = Astro.props;
+---
+
+<article class="blog-card">
+  <a href={post.path} class="blog-card__media" tabindex="-1" aria-hidden="true">
+    {post.cover && (
+      <img src={post.cover.url} alt="" width={post.cover.width ?? undefined} height={post.cover.height ?? undefined}
+        loading={eager ? 'eager' : 'lazy'} decoding="async" />
+    )}
+  </a>
+  <div class="blog-card__body">
+    {post.category && <p class="blog-card__kicker">{post.category.name}</p>}
+    <h2 class="blog-card__title"><a href={post.path}>{post.title}</a></h2>
+    <p class="blog-card__text">{post.description}</p>
+    <p class="blog-card__meta">
+      <time datetime={post.published_at ?? undefined}>{formatDate(post.published_at)}</time> · {post.reading_minutes} perc olvasás
+    </p>
+  </div>
+</article>

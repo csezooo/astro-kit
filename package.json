@@ -1,0 +1,37 @@
+{
+  "name": "@weboldaltmost/astro-kit",
+  "version": "0.6.0",
+  "description": "WeboldaltMost közös Astro komponensek: űrlap, foglalás, mérés, blog, credit bar",
+  "type": "module",
+    "scripts": {
+    "check": "astro check"
+  },
+  "exports": {
+    "./ContactForm.astro": "./src/ContactForm.astro",
+    "./CreditBar.astro": "./src/CreditBar.astro",
+    "./config": "./src/config.ts",
+    "./FeedbackBridge.astro": "./src/FeedbackBridge.astro",
+    "./BookingWidget.astro": "./src/BookingWidget.astro",
+    "./Analytics.astro": "./src/Analytics.astro",
+    "./blog": "./src/blog.ts",
+    "./BlogSeo.astro": "./src/BlogSeo.astro",
+    "./BlogContent.astro": "./src/BlogContent.astro",
+    "./BlogPreview.astro": "./src/BlogPreview.astro",
+    "./blog.css": "./src/blog.css",
+    "./integration": "./src/integration.mjs"
+  },
+  "files": [
+    "src",
+    "examples"
+  ],
+  "peerDependencies": {
+    "astro": ">=4"
+  },
+    "devDependencies": {
+    "astro": "^7.4.5",
+    "@astrojs/check": "^0.9.12",
+    "typescript": "^6.0.3"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

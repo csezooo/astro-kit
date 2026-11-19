@@ -1,0 +1,54 @@
+---
+/**
+ * Minta: a cikk megjelenése. A cikkoldal ([slug].astro) ÉS az előnézet (elonezet.astro) is ezt használja,
+ * ezért az előnézet pontosan úgy néz ki, mint az éles cikk.
+ *
+ * A data-wm-blog="…" attribútumok az előnézetnek kellenek (BlogPreview tölti ki őket) – a kinézetet nem befolyásolják.
+ */
+import type { BlogPost } from '@weboldaltmost/astro-kit/blog';
+import { formatDate } from '@weboldaltmost/astro-kit/blog';
+import BlogContent from '@weboldaltmost/astro-kit/BlogContent.astro';
+
+interface Props {
+  post: BlogPost;
+}
+
+const { post } = Astro.props;
+---
+
+<article class="blog-article">
+  <nav class="blog-article__crumbs" aria-label="Morzsamenü">
+    <a href="/">Főoldal</a> › <a href="/blog/">Blog</a>
+    {post.category?.has_page && <> › <a href={post.category.path}>{post.category.name}</a></>}
+  </nav>
+
+  <header class="blog-article__head">
+    <p class="blog-article__kicker">
+      <span data-wm-blog="category">{post.category?.name}</span>
+      · <span data-wm-blog="reading">{post.reading_minutes} perc olvasás</span>
+    </p>
+    <h1 data-wm-blog="title">{post.title}</h1>
+    <p class="blog-article__meta">
+      <time datetime={post.published_at ?? undefined} data-wm-blog="date">{formatDate(post.published_at)}</time>
+      · <span data-wm-blog="author">{post.author.name}</span>
+    </p>
+  </header>
+
+  {post.cover && (
+    <img class="blog-article__cover" data-wm-blog="cover" src={post.cover.url} alt={post.cover.alt}
+      width={post.cover.width ?? undefined} height={post.cover.height ?? undefined} loading="eager" fetchpriority="high" decoding="async" />
+  )}
+
+  {post.toc.length >= 3 && (
+    <details class="blog-article__toc" open>
+      <summary>Tartalom</summary>
+      <ol>{post.toc.filter((item) => item.level === 2).map((item) => <li><a href={`#${item.id}`}>{item.text}</a></li>)}</ol>
+    </details>
+  )}
+
+  <BlogContent post={post} class="blog-article__content" />
+
+  {post.updated_at && post.updated_at !== post.published_at && (
+    <p class="blog-article__updated">Frissítve: <time datetime={post.updated_at}>{formatDate(post.updated_at)}</time></p>
+  )}
+</article>

@@ -1,0 +1,19 @@
+---
+/**
+ * Minta: előnézet (/blog/elonezet/?t=…) – a panel "Előnézet a weboldalon" gombja nyitja meg.
+ * Ugyanazt a sablont rajzolja ki, mint az éles cikk (BlogArticle), és a böngészőben tölti be a piszkozatot.
+ * Nem kerül a Google-be (noindex), és a sitemapből is kimarad (blogSitemap).
+ */
+import Layout from '../../layouts/Layout.astro';
+import BlogArticle from '../../components/BlogArticle.astro';
+import BlogPreview from '@weboldaltmost/astro-kit/BlogPreview.astro';
+import { PREVIEW_POST } from '@weboldaltmost/astro-kit/blog';
+import '@weboldaltmost/astro-kit/blog.css';
+import { WM_SITE } from '../../wm.config';
+---
+
+<Layout title="Előnézet" description="">
+  <meta slot="head" name="robots" content="noindex, nofollow" />
+  <BlogArticle post={PREVIEW_POST} />
+  <BlogPreview site={WM_SITE} />
+</Layout>

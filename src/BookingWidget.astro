@@ -1,0 +1,48 @@
+---
+/**
+ * WeboldaltMost foglaló widget.
+ *
+ * Használat (pl. src/pages/idopontfoglalas.astro):
+ *   <BookingWidget client="kovacs-festes" />
+ *   <BookingWidget client="kovacs-festes" service="helyszini-felmeres" />
+ *
+ * A widget a platformról töltődik be (JS + CSS), így egy javítás minden
+ * oldalon azonnal megjelenik – nem kell az oldalakat újra buildelni.
+ * A szabad időpontokat élőben kéri le (ezért nem build közben renderelődik).
+ *
+ * Kinézet: az oldal saját CSS-ében a változókkal, pl.
+ *   .wmb-root { --bk-accent: #c2410c; --bk-font: 'Poppins', sans-serif; --bk-radius: 6px; }
+ * A választható változók listája: a platform /css/wm-booking.css fájljának eleje.
+ */
+import { WM } from './config';
+
+interface Props {
+  /** Az ügyfél azonosítója a platformon (slug), pl. "kovacs-festes" */
+  client: string;
+  /** Előre kiválasztott szolgáltatás (slug) */
+  service?: string;
+  /** Nyelv (hu | en) – különben az ügyfél beállítása */
+  lang?: 'hu' | 'en';
+  apiUrl?: string;
+  /** Az alap stíluslap kihagyása (ha teljesen saját CSS-t írsz) */
+  unstyled?: boolean;
+  class?: string;
+}
+
+const { client, service, lang, apiUrl = WM.apiUrl, unstyled = false, class: className } = Astro.props;
+const api = apiUrl.replace(/\/$/, '');
+---
+
+{!unstyled && <link rel="stylesheet" href={`${api}/css/wm-booking.css`} />}
+
+<div
+  class={className}
+  data-wm-booking={client}
+  data-api={api}
+  data-service={service}
+  data-lang={lang}
+>
+  <noscript>Az online foglaláshoz engedélyezd a JavaScriptet, vagy hívj minket telefonon.</noscript>
+</div>
+
+<script is:inline defer src={`${api}/js/wm-booking.js`}></script>

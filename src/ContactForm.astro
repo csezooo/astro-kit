@@ -1,0 +1,298 @@
+---
+/**
+ * WeboldaltMost űrlap.
+ *
+ * Használat:
+ *   <ContactForm formId="01jxxxxxxx" />
+ *
+ * Az űrlap mezőit BUILD közben lekéri a platformról, és statikus HTML-ként rendereli (gyors, nem ugrál).
+ * Oldalbetöltéskor egy kis szkript megnézi, változott-e azóta az űrlap a panelen (a séma 'version' mezője):
+ * ha igen, a friss változatra cseréli a platform beágyazható szkriptjével – így az ügyfél módosítása
+ * újraépítés nélkül, kb. 1 perc alatt megjelenik. Ha build közben a platform nem érhető el,
+ * eleve a beágyazható JS-változat töltődik be.
+ *
+ * Megjelenés: a .wm-form osztályokra az oldal saját CSS-éből lehet stílust írni,
+ * vagy `unstyled` prop-pal az alapstílus kikapcsolható.
+ */
+import { WM, fetchFormSchema } from './config';
+
+interface Props {
+  formId: string;
+  apiUrl?: string;
+  /** Felülírja a gomb feliratát */
+  submitLabel?: string;
+  /** Alapstílus kikapcsolása */
+  unstyled?: boolean;
+  class?: string;
+}
+
+const { formId, apiUrl = WM.apiUrl, submitLabel, unstyled = false, class: className } = Astro.props;
+const schema = await fetchFormSchema(formId, apiUrl);
+const uid = `wm-${formId}`;
+const api = apiUrl.replace(/\/$/, '');
+---
+
+{schema ? (
+  <form
+    id={uid}
+    class:list={['wm-form', { 'wm-styled': !unstyled }, className]}
+    action={schema.endpoint}
+    method="post"
+    novalidate
+    data-wm-endpoint={schema.endpoint}
+    data-wm-success={schema.success_message}
+    data-wm-sending={schema.texts.sending}
+    data-wm-error={schema.texts.error}
+    data-wm-form-id={formId}
+    data-wm-version={schema.version ?? ''}
+    data-wm-api={api}
+    data-wm-unstyled={unstyled ? '1' : undefined}
+  >
+    <div class="wm-message wm-fail" role="alert" hidden></div>
+
+    {schema.fields.map((f) => {
+      const id = `${uid}-${f.name}`;
+      const label = f.label + (f.required ? ' *' : '');
+      const cls = ['wm-field', f.width === 'half' ? 'wm-half' : null];
+
+      if (f.type === 'heading') {
+        return (
+          <div class="wm-field wm-heading">
+            <strong>{f.label}</strong>
+            {f.help && <p>{f.help}</p>}
+          </div>
+        );
+      }
+
+      if (f.type === 'checkbox') {
+        return (
+          <div class:list={cls} data-field={f.name}>
+            <label class="wm-check" for={id}>
+              <input id={id} type="checkbox" name={f.name} value="1" required={f.required} />
+              <span>{label}</span>
+            </label>
+            {f.help && <small class="wm-help">{f.help}</small>}
+            <div class="wm-error" aria-live="polite"></div>
+          </div>
+        );
+      }
+
+      if (f.type === 'radio' || f.type === 'checkboxes') {
+        return (
+          <fieldset class:list={[...cls, 'wm-choices']} data-field={f.name}>
+            <legend>{label}</legend>
+            {(f.options ?? []).map((o, i) => (
+              <label class="wm-check" for={`${id}-${i}`}>
+                <input
+                  id={`${id}-${i}`}
+                  type={f.type === 'radio' ? 'radio' : 'checkbox'}
+                  name={f.name}
+                  value={o}
+                  required={f.type === 'radio' && f.required}
+                />
+                <span>{o}</span>
+              </label>
+            ))}
+            {f.help && <small class="wm-help">{f.help}</small>}
+            <div class="wm-error" aria-live="polite"></div>
+          </fieldset>
+        );
+      }
+
+      return (
+        <div class:list={cls} data-field={f.name}>
+          <label for={id}>{label}</label>
+          {f.type === 'textarea' ? (
+            <textarea id={id} name={f.name} required={f.required} placeholder={f.placeholder ?? undefined} rows="5"></textarea>
+          ) : f.type === 'select' ? (
+            <select id={id} name={f.name} required={f.required}>
+              <option value="">– Válasszon –</option>
+              {(f.options ?? []).map((o) => <option value={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input
+              id={id}
+              type={f.type}
+              name={f.name}
+              required={f.required}
+              placeholder={f.placeholder ?? undefined}
+              inputmode={f.type === 'number' ? 'decimal' : undefined}
+              step={f.type === 'number' ? 'any' : undefined}
+              autocomplete={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : undefined}
+            />
+          )}
+          {f.help && <small class="wm-help">{f.help}</small>}
+          <div class="wm-error" aria-live="polite"></div>
+        </div>
+      );
+    })}
+
+    <div class="wm-hp" aria-hidden="true">
+      <input type="text" name={schema.honeypot_field} tabindex="-1" autocomplete="off" />
+    </div>
+    <input type="hidden" name={schema.timestamp_field} value="" data-wm-timestamp />
+
+    {schema.turnstile_site_key && (
+      <>
+        <div class="cf-turnstile" data-sitekey={schema.turnstile_site_key}></div>
+        <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      </>
+    )}
+
+    <button type="submit">{submitLabel ?? schema.submit_label}</button>
+  </form>
+) : (
+  <>
+    <div data-wm-form={formId}></div>
+    <script is:inline defer src={`${api}/api/v1/forms/${formId}/embed.js`}></script>
+  </>
+)}
+
+<script>
+  // Élő frissítés: ha a panelen azóta módosították az űrlapot, a friss változat töltődik be helyette
+  async function refreshIfChanged(form: HTMLFormElement) {
+    const { wmFormId: id, wmVersion: version, wmApi: api } = form.dataset;
+    if (!id || !api || !version) return;
+
+    try {
+      const res = await fetch(`${api}/api/v1/forms/${id}`, { headers: { Accept: 'application/json' } });
+      if (!res.ok) return;
+      const fresh = await res.json();
+      if (!fresh.version || fresh.version === version) return;
+
+      // A látogató már elkezdte kitölteni? Akkor nem cseréljük ki alóla.
+      const touched = Array.from(form.querySelectorAll<HTMLInputElement>('input:not([type=hidden]), textarea, select'))
+        .some((n) => (n.type === 'checkbox' || n.type === 'radio' ? n.checked : n.value !== ''));
+      if (touched) return;
+
+      const holder = document.createElement('div');
+      holder.setAttribute('data-wm-form', id);
+      form.replaceWith(holder);
+      const script = document.createElement('script');
+      script.src = `${api}/api/v1/forms/${id}/embed.js?v=${fresh.version}`;
+      script.defer = true;
+      document.body.appendChild(script);
+    } catch {
+      // hálózati hiba: marad a statikus változat
+    }
+  }
+
+  // Minden .wm-form[data-wm-endpoint] űrlapot kezel az oldalon
+  document.querySelectorAll<HTMLFormElement>('form.wm-form[data-wm-endpoint]').forEach((form) => {
+    refreshIfChanged(form);
+
+    const ts = form.querySelector<HTMLInputElement>('[data-wm-timestamp]');
+    if (ts) ts.value = String(Date.now());
+
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    const failBox = form.querySelector<HTMLElement>('.wm-message.wm-fail');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('.wm-error').forEach((n) => (n.textContent = ''));
+      form.querySelectorAll('.wm-invalid').forEach((n) => n.classList.remove('wm-invalid'));
+      if (failBox) failBox.hidden = true;
+
+      // A több választós jelölőnégyzetek értéke lista lesz
+      const data: Record<string, FormDataEntryValue | FormDataEntryValue[]> = {};
+      new FormData(form).forEach((v, k) => {
+        data[k] = k in data ? ([] as FormDataEntryValue[]).concat(data[k], v) : v;
+      });
+      form.querySelectorAll<HTMLElement>('fieldset.wm-choices').forEach((set) => {
+        const name = set.dataset.field!;
+        if (set.querySelector('input[type=checkbox]') && name in data && !Array.isArray(data[name])) {
+          data[name] = [data[name] as FormDataEntryValue];
+        }
+      });
+      data._wm_page = window.location.href;
+      // Honnan jött a látogató (a látogatásmérő később 'wm_ref' néven tárolja)
+      let ref = document.referrer || '';
+      try {
+        const stored = sessionStorage.getItem('wm_ref');
+        if (stored !== null) ref = stored;
+      } catch {}
+      data._wm_ref = ref;
+
+      const label = button?.textContent ?? '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = form.dataset.wmSending ?? '…';
+      }
+
+      try {
+        const res = await fetch(form.dataset.wmEndpoint!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const body = await res.json();
+
+        if (res.ok && body.ok) {
+          if (body.redirect) {
+            window.location.href = body.redirect;
+            return;
+          }
+          const msg = document.createElement('div');
+          msg.className = 'wm-message';
+          msg.setAttribute('role', 'status');
+          msg.textContent = body.message ?? form.dataset.wmSuccess ?? '';
+          form.replaceWith(msg);
+          return;
+        }
+
+        if (res.status === 422 && body.errors) {
+          for (const [name, messages] of Object.entries<string[]>(body.errors)) {
+            const wrap = form.querySelector(`[data-field="${name.split('.')[0]}"]`);
+            if (!wrap) continue;
+            wrap.querySelector('.wm-error')!.textContent = messages[0];
+            wrap.querySelector('input,textarea,select')?.classList.add('wm-invalid');
+          }
+        }
+        if (failBox) {
+          failBox.textContent = body.message ?? form.dataset.wmError ?? '';
+          failBox.hidden = false;
+        }
+      } catch {
+        if (failBox) {
+          failBox.textContent = form.dataset.wmError ?? '';
+          failBox.hidden = false;
+        }
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = label;
+        }
+        // @ts-ignore – Turnstile globális objektum
+        if (window.turnstile) try { window.turnstile.reset(); } catch {}
+      }
+    });
+  });
+</script>
+
+<style is:global>
+  .wm-form .wm-hp { position: absolute !important; left: -9999px !important; height: 0; overflow: hidden; }
+  .wm-form .wm-message[hidden] { display: none; }
+  .wm-message { padding: 14px 16px; border-radius: 6px; background: #ecfdf5; color: #065f46; }
+  .wm-message.wm-fail { background: #fef2f2; color: #991b1b; }
+
+  .wm-form.wm-styled { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 640px; }
+  .wm-styled > * { grid-column: 1 / -1; }
+  .wm-styled > .wm-half { grid-column: auto; }
+  @media (max-width: 560px) { .wm-styled > .wm-half { grid-column: 1 / -1; } }
+  .wm-styled .wm-field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+  .wm-styled label, .wm-styled legend { font-weight: 600; font-size: 0.95em; }
+  .wm-styled legend { padding: 0; margin-bottom: 2px; }
+  .wm-styled .wm-help { opacity: 0.75; font-size: 0.85em; }
+  .wm-styled .wm-heading strong { font-size: 1.1em; }
+  .wm-styled .wm-heading p { margin: 0; opacity: 0.8; }
+  .wm-styled input:not([type='checkbox']):not([type='radio']), .wm-styled textarea, .wm-styled select {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d4d4d8;
+    border-radius: 6px; font: inherit; background: #fff; color: inherit;
+  }
+  .wm-styled textarea { resize: vertical; }
+  .wm-styled .wm-check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+  .wm-styled .wm-error { color: #dc2626; font-size: 0.85em; }
+  .wm-styled .wm-invalid { border-color: #dc2626 !important; }
+  .wm-styled button { padding: 12px 20px; border: 0; border-radius: 6px; background: #111; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .wm-styled button[disabled] { opacity: 0.6; cursor: wait; }
+</style>
