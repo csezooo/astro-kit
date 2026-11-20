@@ -1,6 +1,6 @@
 {
   "name": "@weboldaltmost/astro-kit",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "WeboldaltMost közös Astro komponensek: űrlap, foglalás, mérés, blog, credit bar",
   "type": "module",
     "scripts": {
