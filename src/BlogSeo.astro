@@ -41,7 +41,8 @@ const title = post
 const description = post?.description ?? category?.description ?? blog?.blog.description ?? '';
 const image = post?.cover ?? null;
 const origin = canonical ? new URL(canonical).origin : '';
-const rss = origin ? `${origin}${blog?.blog.path ?? '/blog/'}rss.xml` : '';
+// A platform adja a pontos címet (blog.rss); cikkoldalon (blog nélkül) a /blog/rss.xml
+const rss = blog?.blog.rss || (origin ? `${origin}/blog/rss.xml` : '');
 const schema = post?.schema ?? category?.schema ?? blog?.blog.schema ?? null;
 
 let json = schema && Object.keys(schema).length ? JSON.stringify(schema) : '';
