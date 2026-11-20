@@ -96,10 +96,14 @@ export function wmBlog({ site, apiUrl, llms = true, markdown = true, rss = true 
         const posts = (blog.posts ?? []).filter((p) => !p.noindex);
         const blogPath = (blog.blog?.path ?? '/blog/').replace(/^\/|\/$/g, '');
 
-        // 1. Átirányítások (perjellel és nélküle is)
+        // 1. Átirányítások: a régi címről (perjellel és nélküle is) az új címre – a cél a weboldal
+        //    beállítása szerint perjellel (/blog/cikk/) vagy anélkül (/blog/cikk), hogy ne legyen dupla átirányítás
+        const slash = blog.trailing_slash !== false;
         const lines = (blog.redirects ?? []).flatMap(({ from, to }) => {
-          const target = to.endsWith('/') ? to : `${to}/`;
-          return [`${from} ${target} 301`, `${from.replace(/\/$/, '')}/ ${target} 301`];
+          const bare = to.replace(/\/$/, '');
+          const target = slash ? `${bare}/` : bare;
+          const source = from.replace(/\/$/, '');
+          return [`${source} ${target} 301`, `${source}/ ${target} 301`];
         });
         await replaceBlock(join(out, '_redirects'), lines.join('\n'), '#');
 
@@ -123,7 +127,9 @@ export function wmBlog({ site, apiUrl, llms = true, markdown = true, rss = true 
             ...posts.map((p) => `- [${p.title}](${p.url.replace(/\/$/, '')}.md): ${p.description}`),
           ].join('\n');
           await replaceBlock(join(out, 'llms.txt'), section, null, `# ${blog.site?.name ?? ''}\n\n> ${blog.blog?.description || ''}\n`);
-          await write(join(out, 'llms-full.txt'), [`# ${blog.site?.name ?? ''} – ${blog.blog?.title || 'Blog'}`, ...posts.map((p) => p.markdown.trim())].join('\n\n---\n\n') + '\n');
+          // llms-full.txt: az összes cikk teljes szövege (a meglévő llms-full.txt végére, ha van)
+          const full = `## ${blog.blog?.title || 'Blog'}\n\n` + posts.map((p) => p.markdown.trim()).join('\n\n---\n\n');
+          await replaceBlock(join(out, 'llms-full.txt'), full, null, `# ${blog.site?.name ?? ''}\n`);
         }
 
         logger.info(`Blog: ${posts.length} cikk, ${blog.redirects?.length ?? 0} átirányítás.`);

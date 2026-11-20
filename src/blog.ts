@@ -91,6 +91,8 @@ export interface Blog {
   posts: BlogPost[];
   redirects: { from: string; to: string }[];
   indexnow_key: string | null;
+  /** A weboldal beállítása a platformon: perjel a blogcímek végén (/blog/cikk/) – false: /blog/cikk */
+  trailing_slash?: boolean;
 }
 
 const cache = new Map<string, Promise<Blog>>();
