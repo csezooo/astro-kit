@@ -228,6 +228,10 @@ const api = apiUrl.replace(/\/$/, '');
         const body = await res.json();
 
         if (res.ok && body.ok) {
+            // Konverzió a GA4 / Meta Pixel felé (a platform wm-consent.js-e – csak hozzájárulás esetén mér)
+          try {
+            window.dispatchEvent(new CustomEvent('wm:form', { detail: { form: form.dataset.wmFormId } }));
+          } catch {}
           if (body.redirect) {
             window.location.href = body.redirect;
             return;
